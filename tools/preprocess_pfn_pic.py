@@ -1,3 +1,4 @@
+import os
 import sys
 import tqdm
 import imagesize
@@ -13,10 +14,11 @@ def parse_args():
     parser.add_argument('--image_dir_path', type=str, required=True, help='root to images')
     parser.add_argument('--ref_out', type=str, default='./ref.json', help='path to output referring annotation')
     parser.add_argument('--coco_out', type=str, default='./coco_fmt.json', help='path to output bbox annotation')
+    parser.add_argument('--coco_out_train', type=str, default='./coco_fmt_train.json', help='path to output bbox annotation')
+    parser.add_argument('--coco_out_valid', type=str, default='./coco_fmt_valid.json', help='path to output bbox annotation')
     return parser.parse_args()
 
 def gen_dataset(json_path, image_dir_path, split='train',
-    img_id = 0,
     sent_id = 0,
     annot_id = 0):
     '''
@@ -75,6 +77,7 @@ def gen_dataset(json_path, image_dir_path, split='train',
         for line in tqdm.tqdm(fp):
             row_data = json.loads(line)
             file_name = row_data['image_file']
+            img_id = int(os.path.splitext(file_name)[0])
             real_path = image_dir_path+'/'+file_name
             width, height = imagesize.get(real_path)
             images.append({'file_name': file_name,
@@ -97,7 +100,7 @@ def gen_dataset(json_path, image_dir_path, split='train',
                     'category_id': 1,
                     'id': annot_id,
                     'ignore': 0,
-                    'segmentation': []
+                    'segmentation': [[x+1,y+1,x+w-1,y+1,x+w-1,y+h-1,x+1,y+h-1]] # FIXME: bounding box as segmentation
                     })
                 for sent in sents:
                     p = sent.lower()
@@ -121,14 +124,18 @@ def gen_dataset(json_path, image_dir_path, split='train',
                     'category_id': 1
                     })
                 annot_id += 1
-            img_id += 1
-    return images, annotations, ref_obj, img_id, sent_id, annot_id
+    return images, annotations, ref_obj, sent_id, annot_id
 
 def main(args):
-    train_images, train_annotations, train_ref_obj, img_id, sent_id, annot_id = gen_dataset(args.train_json_path, args.image_dir_path, split='train')
-    val_images, val_annotations, val_ref_obj, img_id, sent_id, annot_id = gen_dataset(args.valid_json_path, args.image_dir_path, split='val', img_id=img_id, sent_id=sent_id, annot_id=annot_id)
+    train_images, train_annotations, train_ref_obj, sent_id, annot_id = gen_dataset(args.train_json_path, args.image_dir_path, split='train')
+    val_images, val_annotations, val_ref_obj, sent_id, annot_id = gen_dataset(args.valid_json_path, args.image_dir_path, split='val', sent_id=sent_id, annot_id=annot_id)
+    categories = [{'supercategory': 'none', 'id': 1, 'name': 'person'},]
+    with open(args.coco_out_train, 'w') as fp:
+        fp.write(json.dumps({'images': train_images, 'type': 'instances', 'annotations': train_annotations, 'categories': categories}))
+    with open(args.coco_out_valid, 'w') as fp:
+        fp.write(json.dumps({'images': val_images, 'type': 'instances', 'annotations': val_annotations, 'categories': categories}))
     with open(args.coco_out, 'w') as fp:
-        fp.write(json.dumps({'images': train_images+val_images, 'type': 'instances', 'annotations': train_annotations+val_annotations, 'categories': [{'supercategory': 'none', 'id': 1, 'name': 'person'},]}))
+        fp.write(json.dumps({'images': train_images+val_images, 'type': 'instances', 'annotations': train_annotations+val_annotations, 'categories': categories}))
     with open(args.ref_out, 'wb') as fp:
         pickle.dump(train_ref_obj+val_ref_obj, fp, protocol=0)
 
