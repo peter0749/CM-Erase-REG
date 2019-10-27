@@ -8,14 +8,17 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser('PFN-PIC to RefItGame converter')
-    parser.add_argument('--json_path', type=str, required=True, help='path to annotation file')
+    parser.add_argument('--train_json_path', type=str, required=True, help='path to annotation file')
+    parser.add_argument('--valid_json_path', type=str, required=True, help='path to annotation file')
     parser.add_argument('--image_dir_path', type=str, required=True, help='root to images')
     parser.add_argument('--ref_out', type=str, default='./ref.json', help='path to output referring annotation')
     parser.add_argument('--coco_out', type=str, default='./coco_fmt.json', help='path to output bbox annotation')
-    parser.add_argument('--split', type=str, required=True, help='train/val')
     return parser.parse_args()
 
-def main(args):
+def gen_dataset(json_path, image_dir_path, split='train',
+    img_id = 0,
+    sent_id = 0,
+    annot_id = 0):
     '''
     input (each line):
         - image_file: '...',
@@ -67,15 +70,12 @@ def main(args):
     '''
     images = []
     annotations = []
-    img_id = 0
-    sent_id = 0
-    annot_id = 0
     ref_obj = []
-    with open(args.json_path, 'r') as fp:
+    with open(json_path, 'r') as fp:
         for line in tqdm.tqdm(fp):
             row_data = json.loads(line)
             file_name = row_data['image_file']
-            real_path = args.image_dir_path+'/'+file_name
+            real_path = image_dir_path+'/'+file_name
             width, height = imagesize.get(real_path)
             images.append({'file_name': file_name,
                            'height': height,
@@ -116,16 +116,21 @@ def main(args):
                     'ann_id': annot_id,
                     'ref_id': annot_id,
                     'image_id': img_id,
-                    'split': args.split,
+                    'split': split,
                     'sentences': sentences,
                     'category_id': 1
                     })
                 annot_id += 1
             img_id += 1
+    return images, annotations, ref_obj, img_id, sent_id, annot_id
+
+def main(args):
+    train_images, train_annotations, train_ref_obj, img_id, sent_id, annot_id = gen_dataset(args.train_json_path, args.image_dir_path, split='train')
+    val_images, val_annotations, val_ref_obj, img_id, sent_id, annot_id = gen_dataset(args.valid_json_path, args.image_dir_path, split='val', img_id=img_id, sent_id=sent_id, annot_id=annot_id)
     with open(args.coco_out, 'w') as fp:
-        fp.write(json.dumps({'images': images, 'type': 'instances', 'annotations': annotations, 'categories': [{'supercategory': 'none', 'id': 1, 'name': 'person'},]}))
+        fp.write(json.dumps({'images': train_images+val_images, 'type': 'instances', 'annotations': train_annotations+val_annotations, 'categories': [{'supercategory': 'none', 'id': 1, 'name': 'person'},]}))
     with open(args.ref_out, 'wb') as fp:
-        pickle.dump(ref_obj, fp, protocol=0)
+        pickle.dump(train_ref_obj+val_ref_obj, fp, protocol=0)
 
 if __name__=='__main__':
     main(parse_args())
