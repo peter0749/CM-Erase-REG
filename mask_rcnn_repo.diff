@@ -1,0 +1,73 @@
+diff --git a/lib/Makefile b/lib/Makefile
+index 24a7094..2fd9015 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -10,7 +10,7 @@ all:
+ 	cd layer_utils/roi_pooling/src/cuda; \
+ 	pwd; \
+ 	echo "Compiling roi_pooling kernels by nvcc..."; \
+-	nvcc -c -o roi_pooling_kernel.cu.o roi_pooling_kernel.cu -x cu -Xcompiler -fPIC -arch=sm_52; \
++	nvcc -c -o roi_pooling_kernel.cu.o roi_pooling_kernel.cu -x cu -Xcompiler -fPIC -arch=sm_61; \
+ 	cd ../..;\
+ 	python build.py;\
+ 	cd ../../..
+diff --git a/lib/datasets/coco.py b/lib/datasets/coco.py
+index fad76ec..db02510 100644
+--- a/lib/datasets/coco.py
++++ b/lib/datasets/coco.py
+@@ -65,7 +65,7 @@ class coco(imdb):
+     self._gt_splits = ('train', 'val', 'minival')
+ 
+   def _get_ann_file(self):
+-    if self._image_set.find('test') != 0:  
++    if self._image_set.find('test') != 0:
+       # 'train', 'val', 'minival', 'valminusminival', train_minus_refer_valtest'
+       prefix = 'instances'
+     else:
+@@ -98,10 +98,11 @@ class coco(imdb):
+     """
+     # Example image path for index=119993:
+     #   images/train2014/COCO_train2014_000000119993.jpg
+-    file_name = ('COCO_' + self._data_name + '_' +
+-                 str(index).zfill(12) + '.jpg')
++    #file_name = ('COCO_' + self._data_name + '_' +
++    #             str(index).zfill(12) + '.jpg')
++    file_name = '%d.png'%index
+     image_path = osp.join(self._data_path, 'images',
+-                          self._data_name, file_name)
++                          file_name)
+     assert osp.exists(image_path), \
+       'Path does not exist: {}'.format(image_path)
+     return image_path
+diff --git a/tools/make_refer_coco_instances.py b/tools/make_refer_coco_instances.py
+index 4f051ce..967f025 100644
+--- a/tools/make_refer_coco_instances.py
++++ b/tools/make_refer_coco_instances.py
+@@ -1,6 +1,6 @@
+ """
+ Make refer instances.
+-We will use refcoco(+)_unc and refcocog_umd. The reason we do not 
++We will use refcoco(+)_unc and refcocog_umd. The reason we do not
+ use refcocog_google is its overlap between train and val on image
+ set. Specifically, we will make the follows:
+ 1) refcoco_train.json, refcoco_trainval.json, refcoco_val.json, refcoco_test.json
+@@ -67,7 +67,7 @@ print('[%s] has %s train images, %s val images, and %s test images.' % \
+ #######################################################################
+ def make_instances(my_image_ids, data):
+   my_data = {}
+-  for k in ['info', 'licenses', 'categories']:
++  for k in ['categories',]:
+     my_data[k] = data[k]
+   my_data['images'] = [image for image in data['images'] if image['id'] in my_image_ids]
+   my_data['annotations'] = [ann for ann in data['annotations'] if ann['image_id'] in my_image_ids]
+@@ -78,8 +78,8 @@ if not osp.isdir(refer_coco_data_path):
+   os.makedirs(refer_coco_data_path)
+ 
+ # load coco data
+-coco_data = json.load(open(osp.join(coco_data_path, 'instances_train2014.json')))
+-print('raw COCO instances_train2014.json loaded.')
++coco_data = json.load(open(osp.join(coco_data_path, 'instances.json')))
++print('raw COCO instances.json loaded.')
+ 
+ # make train
+ refer_train = make_instances(train_image_ids, coco_data)
