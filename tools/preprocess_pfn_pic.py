@@ -58,7 +58,7 @@ def main(args):
                 - iscrowd: 0,
                 - image_id: int(...),
                 - bbox: int list [x,y,w,h],
-                - category_id: 0,
+                - category_id: 1,
                 - id: int(...),
                 - ignore: 0,
                 - segmentation: [] <- FIXME: No segmentation annotation
@@ -94,7 +94,7 @@ def main(args):
                     'iscrowd': 0,
                     'image_id': img_id,
                     'bbox': [x,y,w,h],
-                    'category_id': 0,
+                    'category_id': 1,
                     'id': annot_id,
                     'ignore': 0,
                     'segmentation': []
@@ -118,12 +118,12 @@ def main(args):
                     'image_id': img_id,
                     'split': args.split,
                     'sentences': sentences,
-                    'category_id': 0
+                    'category_id': 1
                     })
                 annot_id += 1
             img_id += 1
     with open(args.coco_out, 'w') as fp:
-        fp.write(json.dumps({'images': images, 'type': 'instances', 'annotations': annotations, 'categories': [{'supercategory': 'none', 'id': 0, 'name': 'foo'},]}))
+        fp.write(json.dumps({'images': images, 'type': 'instances', 'annotations': annotations, 'categories': [{'supercategory': 'none', 'id': 1, 'name': 'person'},]}))
     with open(args.ref_out, 'wb') as fp:
         pickle.dump(ref_obj, fp, protocol=0)
 
